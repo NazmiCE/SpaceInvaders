@@ -6,6 +6,9 @@ import datetime
 # Initialize
 pygame.init()
 board_dict = {"left" : 0, "right" : 0, "up" : 0, "down" : 0}
+initial_time = datetime.datetime.now()
+start_time = {"left": initial_time, "right": initial_time, "up" : initial_time, "down" : initial_time}
+pressed_button = {"left": False, "right": False, "up" : False, "down" : False}
 
 # Assets
 icon = pygame.image.load("Assets/ufo.png")
@@ -14,7 +17,7 @@ enemyImg = pygame.image.load("Assets/enemy.png")
 PLAYER = pygame.image.load("Assets/battleship.png")
 bullet = pygame.image.load("Assets/bullet.png")
 
-
+bullet_reset_time_start = None
 # Screen
 screen = pygame.display.set_mode((800,600))
 
@@ -35,6 +38,7 @@ enemy_creation_time = datetime.datetime.now()
 score = 0
 time = 5
 bullet_limit = 6
+current_bullet = 6
 font = pygame.font.Font('freesansbold.ttf',32)
 textX = 10
 textY = 10
@@ -42,11 +46,61 @@ textY = 10
 #Spaceship
 PLAYER_X = 420
 PLAYER_Y = 380
-change = 4
+change = 4.0
 
 # List
 bulletList = []
-enemyList = [[enemyX,enemyY,"right"]]   #  
+enemyList = [[enemyX,enemyY,"right"]]   
+
+
+def speed_up(limit: int, milisecond: int, speeding: float, speed: float, pressed : bool, timeee: datetime.datetime, left_up: bool = False):
+    check_time = datetime.datetime.now()
+    difference = check_time - timeee
+    difference_in_miliseconds = difference.microseconds
+
+    if left_up == True:  
+        if speed > 0:
+            speed = 0
+        if abs(speed) <= limit: 
+            if pressed == True:
+                if difference_in_miliseconds < milisecond:
+                    return speed
+                else: 
+                    if abs(speed) != 4:
+                        return speed + speeding
+                
+            if pressed == False:
+                if difference_in_miliseconds < milisecond:
+                    return speed
+                else:
+                    if speed == 0:
+                        return speed 
+                    return speed - speeding/4
+        else:
+            speed = -limit
+        return speed
+
+    if left_up == False:  
+        if speed < 0: 
+            speed = 0
+        if speed <= limit: 
+            if pressed == True:
+                if difference_in_miliseconds < milisecond:
+                    return speed
+                else: 
+                    if speed != 4:
+                        return speed + speeding
+                
+            if pressed == False:
+                if difference_in_miliseconds < milisecond:
+                    return speed
+                else:
+                    if speed == 0:
+                        return speed 
+                    return speed - speeding/4
+        else:
+            speed = limit
+        return speed
 
 def show_score(x, y):
     score_disp = font.render("Score: " + str(score), True, (255, 255, 255))
@@ -90,7 +144,7 @@ def enemyCreation(last_enemy_creation_time):
     return [False, enemy_creation_time]
     
 
-first_encounter =   True
+first_encounter = True
 running = True
 game_over = False
 # Game loop
@@ -100,7 +154,7 @@ while running:
     # Background
     screen.blit(background_img,(0,0))
     show_score(textX, textY)
-    show_bullet(bullet_limit, 10, 70)
+    show_bullet(current_bullet, 10, 70)
     
     if game_over == True:
         for event in pygame.event.get():
@@ -120,8 +174,46 @@ while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            
+
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_a:
+                    start_time["left"] = datetime.datetime.now()
+                    pressed_button["left"] = True
+                if event.key == pygame.K_d:
+                    start_time["right"] = datetime.datetime.now()
+                    pressed_button["right"] = True
+                if event.key == pygame.K_w:
+                    start_time["up"] = datetime.datetime.now()
+                    pressed_button["up"] = True
+                if event.key == pygame.K_s:
+                    start_time["down"] = datetime.datetime.now()
+                    pressed_button["down"] = True
+                if event.key == pygame.K_SPACE:
+                    if current_bullet > 0:
+                        bullet_X = PLAYER_X
+                        bullet_Y = PLAYER_Y
+                        bulletList.append([bullet_X + 16,bullet_Y - 10, True])
+            
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_a:
+                    start_time["left"] = datetime.datetime.now()
+                    pressed_button["left"] = False
+                if event.key == pygame.K_d:
+                    start_time["right"] = datetime.datetime.now()
+                    pressed_button["right"] = False
+                if event.key == pygame.K_w:
+                    start_time["up"] = datetime.datetime.now()
+                    pressed_button["up"] = False
+                if event.key == pygame.K_s:
+                    start_time["down"] = datetime.datetime.now()
+                    pressed_button["down"] = False
+            
+        board_dict["left"] = speed_up(4,50,-0.2,board_dict["left"], pressed_button["left"], start_time["left"], True)
+        board_dict["right"] = speed_up(4,50,0.2,board_dict["right"], pressed_button["right"], start_time["right"], False)
+        board_dict["up"] = speed_up(4,50,-0.2,board_dict["up"], pressed_button["up"], start_time["up"], True)
+        board_dict["down"] = speed_up(4,50,0.2,board_dict["down"], pressed_button["down"], start_time["down"], False)
+        
+        """if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_a:
                     board_dict["left"] = -change
                 if event.key == pygame.K_d:
@@ -131,15 +223,12 @@ while running:
                 if event.key == pygame.K_s:
                     board_dict["down"] = change
                 if event.key == pygame.K_SPACE:
-                    if bullet_limit > 0:
+                    if current_bullet > 0:
                         bullet_X = PLAYER_X
                         bullet_Y = PLAYER_Y
-                        bulletList.append([bullet_X + 16,bullet_Y - 10])
-                        bullet_limit -= 1
-                    if bullet_limit == 0 and first_encounter == True:
-                        first_encounter = False
-                        bullet_reset_time_start = datetime.datetime.now()
-            
+                        bulletList.append([bullet_X + 16,bullet_Y - 10, True])
+                    
+                    
             if event.type == pygame.KEYUP:
                 if  event.key == pygame.K_a:
                     board_dict["left"] = 0
@@ -148,7 +237,7 @@ while running:
                 if  event.key == pygame.K_w:
                     board_dict["up"] = 0
                 if event.key == pygame.K_s:
-                    board_dict["down"] = 0
+                    board_dict["down"] = 0"""
             
         # Player
 
@@ -182,17 +271,21 @@ while running:
 
 
         # Bullets
+
         for i in bulletList:
-            i[1] -= 10  # BulletList is a 2 dimensional array, every member has 2 coordinates so i[1] corresponds to Y dimension
+            i[1] -= 10  # BulletList is a 2 dimensional array, every member has 2 coordinates so i[1] correspondsa to Y dimension
             for j in enemyList:
                 isColide = isCollision(i[0], i[1], j[0], j[1])
                 if isColide is True:
                     score += 1
                     enemyList.remove(j)
-                    bulletList.remove(i)
+                    if i[2] == True:
+                        i[2] = False
+                        bulletList.remove(i)
                     current_num_enemy -= 1
-                    bullet_limit += 1
-                    if current_num_enemy == 0:
+                    if current_bullet < bullet_limit:
+                        current_bullet += 1
+                    if current_num_enemy < 0:
                         enemyX = random.randint(0,736)
                         enemyY = random.randint(50,150)
                         enemyList.append([enemyX, enemyY, "right"])
@@ -201,18 +294,26 @@ while running:
 
             
         for i in bulletList:
-            if i[1] < 0:
+            if i[1] < -50:
                 bulletList.remove(i)
+                current_bullet -= 1 # Bullet Iska
+        
+        if current_bullet == 0 and first_encounter == True:
+            first_encounter = False
+            bullet_reset_time_start = datetime.datetime.now()
 
         # Bullet cooling
-        if bullet_limit <= 0:
+        if current_bullet <= 0:
             bullet_reset_time_end = datetime.datetime.now()
-            difference = bullet_reset_time_end - bullet_reset_time_start
+            try:
+                difference = bullet_reset_time_end - bullet_reset_time_start
+            except:
+                pass
             # print(type(difference)) -> datetime.timedelta
             time = difference.seconds + difference.microseconds/10**6
             show_cool_down(int(round(time)), 10, 40)
             if time > 5:
-                bullet_limit = 6
+                current_bullet = 6
                 first_encounter = True
 
         else: show_cool_down(0,10,40)
@@ -266,6 +367,9 @@ while running:
             print(len(enemyList))
             enemyList = []
             current_num_enemy = 0
+            score = 0
+            bullet_limit = 6
+            current_bullet = 6
             
         
         # Blitting
